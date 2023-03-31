@@ -26,6 +26,8 @@ main(int argc, char *argv[])
     unsigned int i, file_size, need_comma;
 
     FILE *f_input, *f_output;
+    
+    bool is_appending = false;
 
 #ifdef USE_BZ2
     char *bz2_buf;
@@ -33,9 +35,20 @@ main(int argc, char *argv[])
 #endif
 
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s binary_file output_file array_name\n",
+        fprintf(stderr, "Usage: %s binary_file output_file array_name\n"
+                        "Command line arguments: \n"
+                        "-a|--append                  appends to output file instead of overwriting\n",
                 argv[0]);
         return -1;
+    }
+    if(argc > 4) {
+        if(strcmp(argv[4], "-a") == 0 || strcmp(argv[4], "-append") == 0) {
+            is_appending = true;
+        }
+        else {
+            fprintf(stderr, "Invalid command line argument: %s\n", argv[4]);
+            return -1;
+        }
     }
 
     f_input = fopen(argv[1], "rb");
@@ -78,8 +91,10 @@ main(int argc, char *argv[])
     file_size = bz2_size;
     buf = bz2_buf;
 #endif
-
-    f_output = fopen(argv[2], "a+");
+    if(is_appending)
+        f_output = fopen(argv[2], "a+");
+    else
+        f_output = fopen(argv[2], "w");
     if (f_output == NULL) {
         fprintf(stderr, "%s: can't open %s for writing\n", argv[0], argv[2]);
         return -1;
