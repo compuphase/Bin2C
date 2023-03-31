@@ -7,6 +7,12 @@ Usage:
 bin2c input_file output_file array_name
 ```
 
+Command line arguments:
+
+```
+-a|--append appends the contents to file instead of overwriting.
+```
+
 for example, using:
 ```
 bin2c my_file.dat my_file.h data
