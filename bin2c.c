@@ -43,7 +43,7 @@ main(int argc, char *argv[])
         return -1;
     }
     if(argc > 4) {
-        if(strcmp(argv[4], "-a") == 0 || strcmp(argv[4], "-append") == 0) {
+        if(strcmp(argv[4], "-a") == 0 || strcmp(argv[4], "--append") == 0) {
             is_appending = true;
         }
         else {
