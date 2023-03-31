@@ -1,4 +1,4 @@
-bin2c - A simple utility for converting a binary file to a c application which
+Bin2C - A simple utility for converting a binary file to a c application which
 can then be included within an application.
 
 Usage:
