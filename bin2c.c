@@ -79,7 +79,7 @@ main(int argc, char *argv[])
     buf = bz2_buf;
 #endif
 
-    f_output = fopen(argv[2], "w");
+    f_output = fopen(argv[2], "a+");
     if (f_output == NULL) {
         fprintf(stderr, "%s: can't open %s for writing\n", argv[0], argv[2]);
         return -1;
