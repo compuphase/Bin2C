@@ -36,7 +36,7 @@ main(int argc, char *argv[])
 #endif
 
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s binary_file output_file array_name\n"
+        fprintf(stderr, "Usage: %s binary_file output_file array_name\n\n"
                         "Command line arguments: \n"
                         "  -a|--append                  appends to output file instead of overwriting\n",
                 argv[0]);
