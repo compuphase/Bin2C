@@ -56,14 +56,6 @@ static void about(const char *arg)
 int
 main(int argc, char *argv[])
 {
-    uint8_t *buf;
-    unsigned int idx, file_size, array_size;
-    bool need_comma;
-    uint32_t word;
-    int bits;
-
-    FILE *f_input, *f_output;
-
     const char *f_inputname = NULL;
     char *f_outputname = NULL;
     char *symbolname = NULL;
@@ -76,15 +68,10 @@ main(int argc, char *argv[])
     bool zero_terminate = false;
     unsigned int bitsize = 8;
 
-#ifdef USE_BZ2
-    char *bz2_buf;
-    unsigned int uncompressed_size, bz2_size;
-#endif
-
     /* parse command line */
     if (argc <= 1)
         about(NULL);
-    for (idx = 1; idx < argc; idx++) {
+    for (int idx = 1; idx < argc; idx++) {
         if (argv[idx][0] == '-') {
             if (strcmp(argv[idx], "-a") == 0 || strcmp(argv[idx], "--append") == 0) {
                 is_appending = true;
@@ -170,7 +157,7 @@ main(int argc, char *argv[])
         local_symbolname = true;
     }
 
-    f_input = fopen(f_inputname, is_textfile ? "rt" : "rb");
+    FILE *f_input = fopen(f_inputname, is_textfile ? "rt" : "rb");
     if (f_input == NULL) {
         fprintf(stderr, "ERROR: Failed to open %s for reading.\n", f_inputname);
         return 1;
@@ -178,11 +165,11 @@ main(int argc, char *argv[])
 
     /* get the length of the input file, then read it fully in memory */
     fseek(f_input, 0, SEEK_END);
-    file_size = ftell(f_input);
+    unsigned int file_size = ftell(f_input);
     fseek(f_input, 0, SEEK_SET);
     if (zero_terminate)
         file_size += 1;
-    buf = (uint8_t*)calloc(file_size, 1);
+    uint8_t *buf = (uint8_t *)calloc(file_size, 1);
     if (buf == NULL) {
         fprintf(stderr, "ERROR: Memory allocation error.\n");
         return 1;
@@ -192,10 +179,10 @@ main(int argc, char *argv[])
 
 #ifdef USE_BZ2
     // allocate for bz2.
-    bz2_size =
+    unsigned int bz2_size =
       (file_size + file_size / 100 + 1) + 600; // as per the documentation
 
-    bz2_buf = (char *) malloc(bz2_size);
+    uint8_t *bz2_buf = (uint8_t *) malloc(bz2_size);
     assert(bz2_buf);
 
     // compress the data
@@ -209,11 +196,12 @@ main(int argc, char *argv[])
 
     // and be very lazy
     free(buf);
-    uncompressed_size = file_size;
+    unsigned int uncompressed_size = file_size;
     file_size = bz2_size;
     buf = bz2_buf;
 #endif
 
+    FILE *f_output;
     if(is_appending)
         f_output = fopen(f_outputname, "a+t");
     else
@@ -228,20 +216,20 @@ main(int argc, char *argv[])
                           "#include <stdint.h>");
     fprintf(f_output, "\n\n");
     assert(bitsize == 8 || bitsize == 16 || bitsize == 32);
-    array_size = (file_size + ((bitsize >> 3) - 1)) / (bitsize >> 3);
-    fprintf(f_output, "const uint%u_t %s[%i] = {", bitsize, symbolname, array_size);
-    need_comma = false;
-    word = bits = 0;
-    for (idx = 0; idx < file_size; ++idx) {
+    unsigned int array_size = (file_size + ((bitsize >> 3) - 1)) / (bitsize >> 3);
+    fprintf(f_output, "const uint%u_t %s[%u] = {", bitsize, symbolname, array_size);
+    bool need_comma = false;
+    bool need_newline = true;
+    uint32_t word = 0;
+    int bits = 0;
+    for (unsigned int idx = 0; idx < file_size; ++idx) {
         word |= (uint32_t)buf[idx] << bits;
         bits += 8;
         assert(bits <= bitsize);
         if (bits == bitsize) {
             if (need_comma)
                 fprintf(f_output, ", ");
-            else
-                need_comma = true;
-            if ((idx & 0x0f) == (bitsize - 8) >> 3)
+            if (need_newline)
                 fprintf(f_output, "\n\t");
             if (bitsize == 8)
                 fprintf(f_output, "0x%02x", word);
@@ -250,12 +238,14 @@ main(int argc, char *argv[])
             else if (bitsize == 32)
                 fprintf(f_output, "0x%08x", word);
             word = bits = 0;
+            need_comma = true;  /* after first value, comma must always precede any next value */
+            need_newline = (((idx + 1) & 0x0f) == 0);   /* 16 bytes per row */
         }
     }
     if (bits > 0) {
         if (need_comma)
             fprintf(f_output, ", ");
-        if ((idx & 0x0f) == 0)
+        if (need_newline)
             fprintf(f_output, "\n\t");
         if (bitsize == 8)
             fprintf(f_output, "0x%02x", word);
