@@ -1,27 +1,42 @@
-Bin2C - A simple utility for converting a binary file to a c application which
-can then be included within an application.
+# Bin2C - convert a binary file to a C array.
+
+Bin2C is a simple utility for converting a binary file to a C array declaration,
+which can then be included within an application.
 
 Usage:
 
 ```
-bin2c input_file output_file array_name
+bin2c input_file [output_file] [options]
 ```
 
-Command line arguments:
+## Command line arguments
 
+The `input_file` parameter is required.
+
+The name (and path) of the `output_file` may be explicitly set. If not specified,
+the output file has the same name as the input file, but with the extension `.h`.
+
+Various options are available:
+
+| Short     | Long         | Description |
+|-----------|---------------|-------------|
+| -a        | --append      | Append to the output file instead of overwriting it. |
+| -b number | --bits number | Set the width in bits of the array elements. This can be 8, 16 or 32 (for `uint8_t`, `uint16_t` or `uint32_t` respectively). The default bit size = 8. |
+| -h        | --help        | Show brief help. |
+| -l name   | --label name  | Set the symbol name for the array. If not specified, the symbol name is the input filename, without extension or path. However, if the filename is not a valid symbol name, this option must be used to set the symbol name explicitly. |
+| -m        | --macro       | Declare the array size as a macro, instead of as a "const" variable. |
+| -t        | --text        | Open the input file as a text file (Microsoft Windows only; this esssentially translates CR-LF pairs in the input file to LF). |
+| -z        | --zero        | Append a zero terminator byte at the end of the array. |
+
+For example, using:
 ```
--a | --append appends the contents to file instead of overwriting.
+bin2c my_file.dat --label data
 ```
 
-for example, using:
-```
-bin2c my_file.dat my_file.h data
-```
-
-will create something along the lines of
+will create a file called `my_file.h` with contents along the lines of:
 
 ```c
-const char data[3432] = {
+const uint8_t data[3432] = {
    0x43, 0x28, 0x41, 0x11, 0xa3, 0xff,
    ...
    0x00, 0xff, 0x23
@@ -33,6 +48,23 @@ const int data_length = 3432;
 This can then be used within your application, for example with SDL you would
 use SDL_RWops. The application can also be used in a very similar fashion to
 Qt's RC system.
+
+The purpose of the `--zero` option is that it allows you to embed a text file
+in a C program. Then, the generated array may be manipulated as a string (text
+files do not have zero bytes). In Linux and Unix-like operating systems, lines
+in a text files end with a "newline" (which is the LF character). In Microsoft
+Windows, lines end with CR-LF pairs. The CR characters are redundant in the
+generated array, in most cases. Therefore, you may have these stripped with the
+`--text` option.
+
+For binary formats, the alignment may be important. A C/C++ compiler makes sure
+that integers are aligned on a multiple of the integer size. Thus, a simple and
+portable way to ensure that the generated array is 32-bit aligned, is to dump
+the data as 32-bit integers. This is the purpose of the `--bits` option. Note
+that the multi-byte values are in Little Endian, so that the byte order is the
+same as for byte-sized fields.
+
+## Building Bin2C
 
 I haven't included a Makefile because the utility is SO simple, I don't
 think that one is needed. But for an example, compiling for GNU/Linux can be
@@ -73,10 +105,13 @@ free(buf);
 I'm not entirely happy with having to do const_cast in C++ so if anyone can
 suggest an alternative then I'd be happy to implement it.
 
+## In closing
+
 Patches are welcome, just fork the project on github and send me a pull
 request. If you are unable or unwilling to do this through github, then feel
 free to email me your patch. This utility is so small I don't think that any
 licence is needed, and I took most of the code from Serge Fukanchick and made
-quite a few modifications so left it in the public domain. So please just send 
-me a little note to say that you don't mind your code being in the public 
+quite a few modifications so left it in the public domain. So please just send
+me a little note to say that you don't mind your code being in the public
 domain.
+
