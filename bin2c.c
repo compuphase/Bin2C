@@ -87,7 +87,7 @@ main(int argc, char *argv[])
                     fprintf(stderr, "ERROR: Invalid bit size (must be 8, 16 or 32).\n");
                     return 1;
                 }
-            } else if (strcmp(argv[idx], "-h") == 0 || strcmp(argv[idx], "--help") == 0) {
+            } else if (strcmp(argv[idx], "-h") == 0 || strcmp(argv[idx], "--help") == 0 || strcmp(argv[idx], "-?") == 0) {
                 about(NULL);
             } else if (strncmp(argv[idx], "-l", 2) == 0 || strncmp(argv[idx], "--label", 7) == 0) {
                 unsigned int j = (argv[idx][1] == '-') ? 7 : 2;
