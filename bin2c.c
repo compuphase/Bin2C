@@ -223,7 +223,7 @@ main(int argc, char *argv[])
     unsigned int array_size = (file_size + ((bitsize >> 3) - 1)) / (bitsize >> 3);
     if (!is_mutable)
         fprintf(f_output, "const ");
-    fprintf(f_output, "const uint%u_t %s[%u] = {", bitsize, symbolname, array_size);
+    fprintf(f_output, "uint%u_t %s[%u] = {", bitsize, symbolname, array_size);
     bool need_comma = false;
     bool need_newline = true;
     uint32_t word = 0;
