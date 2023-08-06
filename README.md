@@ -22,9 +22,10 @@ Various options are available:
 |-----------|---------------|-------------|
 | -a        | --append      | Append to the output file instead of overwriting it. |
 | -b number | --bits number | Set the width in bits of the array elements. This can be 8, 16 or 32 (for `uint8_t`, `uint16_t` or `uint32_t` respectively). The default bit size = 8. |
+| -d        | --define      | Declare the array size as a #define (default is to declare it as a "const unsigned int" variable). |
 | -h        | --help        | Show brief help. |
 | -l name   | --label name  | Set the symbol name for the array. If not specified, the symbol name is the input filename, without extension or path. However, if the filename is not a valid symbol name, this option must be used to set the symbol name explicitly. |
-| -m        | --macro       | Declare the array size as a macro, instead of as a "const" variable. |
+| -m        | --mutable     | Declare the array as mutable (non-const). |
 | -t        | --text        | Open the input file as a text file (Microsoft Windows only; this esssentially translates CR-LF pairs in the input file to LF). |
 | -z        | --zero        | Append a zero terminator byte at the end of the array. |
 
@@ -63,6 +64,14 @@ portable way to ensure that the generated array is 32-bit aligned, is to dump
 the data as 32-bit integers. This is the purpose of the `--bits` option. Note
 that the multi-byte values are in Little Endian, so that the byte order is the
 same as for byte-sized fields.
+
+In the typical case where you embed binary data inside a C/C++ program, you will
+use the data as-is. That is, you will not modify it. The default action of Bin2C,
+to declare the array as "const" is what you want. As a side benefit, when the
+code is for a microcontroller, the array will end up in Flash ROM, and not in
+SRAM (and microcontrollers typically have more Flash memory than SRAM). However,
+in some cases, you may want the data to be changeable by the code that you embed
+it in. To this end, use the option `--mutable`.
 
 ## Building Bin2C
 

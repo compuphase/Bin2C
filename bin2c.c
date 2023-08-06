@@ -45,9 +45,10 @@ static void about(const char *arg)
     fprintf(stderr, "Options:\n"
                     "  -a|--append        Append to the output file instead of overwriting.\n"
                     "  -b|--bits number   Set the width of the array elements (default = 8).\n"
+                    "  -d|--define        Declare the array size as a #define, instead of const int.\n"
                     "  -h|--help          Show brief help.\n"
                     "  -l|--label name    Set the symbol name for the array.\n"
-                    "  -m|--macro         Declare the array size as a macro, instead of a variable.\n"
+                    "  -m|--mutable       Declare the array as mutable (non-const).\n"
                     "  -t|--text          Open the input file as a text file (Windows only).\n"
                     "  -z|--zero          Append a zero terminator at the end of the array.\n");
     exit(1);
@@ -64,6 +65,7 @@ main(int argc, char *argv[])
 
     bool is_appending = false;
     bool is_textfile = false;
+    bool is_mutable = false;
     bool use_macro = false;
     bool zero_terminate = false;
     unsigned int bitsize = 8;
@@ -87,6 +89,8 @@ main(int argc, char *argv[])
                     fprintf(stderr, "ERROR: Invalid bit size (must be 8, 16 or 32).\n");
                     return 1;
                 }
+            } else if (strcmp(argv[idx], "-d") == 0 || strcmp(argv[idx], "--define") == 0) {
+                use_macro = true;
             } else if (strcmp(argv[idx], "-h") == 0 || strcmp(argv[idx], "--help") == 0 || strcmp(argv[idx], "-?") == 0) {
                 about(NULL);
             } else if (strncmp(argv[idx], "-l", 2) == 0 || strncmp(argv[idx], "--label", 7) == 0) {
@@ -101,8 +105,8 @@ main(int argc, char *argv[])
                     fprintf(stderr, "ERROR: Invalid C symbol name '%s'.\n", symbolname);
                     return 1;
                 }
-            } else if (strcmp(argv[idx], "-m") == 0 || strcmp(argv[idx], "--macro") == 0) {
-                use_macro = true;
+            } else if (strcmp(argv[idx], "-m") == 0 || strcmp(argv[idx], "--mutable") == 0) {
+                is_mutable = true;
             } else if (strcmp(argv[idx], "-t") == 0 || strcmp(argv[idx], "--text") == 0) {
                 is_textfile = true;
             } else if (strcmp(argv[idx], "-z") == 0 || strcmp(argv[idx], "--zero") == 0) {
@@ -217,6 +221,8 @@ main(int argc, char *argv[])
     fprintf(f_output, "\n\n");
     assert(bitsize == 8 || bitsize == 16 || bitsize == 32);
     unsigned int array_size = (file_size + ((bitsize >> 3) - 1)) / (bitsize >> 3);
+    if (!is_mutable)
+        fprintf(f_output, "const ");
     fprintf(f_output, "const uint%u_t %s[%u] = {", bitsize, symbolname, array_size);
     bool need_comma = false;
     bool need_newline = true;
