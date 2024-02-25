@@ -7,6 +7,9 @@
  *
  * Some modifications were made by Gwilym Kuiper (kuiper.gwilym@gmail.com)
  * I have decided not to change the licence.
+ *
+ * A few more enhancements were made by Thiadmer Riemersma (thiadmer@compuphase.com),
+ * and also donated to the public domain.
  */
 
 #include <assert.h>
@@ -145,7 +148,7 @@ main(int argc, char *argv[])
     }
     if (symbolname == NULL) {
         const char *base;
-        char *ext;
+        char *ext, *ptr;
         base = f_inputname;
         while (strpbrk(base, "\\/") != NULL)
             base = strpbrk(base, "\\/") + 1;    /* skip all directory names */
@@ -158,6 +161,8 @@ main(int argc, char *argv[])
         ext = strrchr(symbolname, '.');
         if (ext != NULL)
             *ext = '\0';    /* remove extension */
+        while ((ptr = strpbrk(symbolname, " .!@#$%&()")) != NULL)
+            *ptr = '_';     /* replace spaces and invalid characters by an underscore */
         local_symbolname = true;
     }
 
