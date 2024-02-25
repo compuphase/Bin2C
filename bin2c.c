@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,6 +35,16 @@
 #   endif
 #endif
 
+static void fatal(const char *msg, ...)
+{
+    va_list ap;
+    va_start(ap, msg);
+    fprintf(stderr, "ERROR: ");
+    vfprintf(stderr, msg, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 static void about(const char *arg)
 {
     if (arg == NULL) {
@@ -46,14 +57,18 @@ static void about(const char *arg)
         fprintf(stderr, "ERROR: Invalid option '%s'.\n\n", arg);
     }
     fprintf(stderr, "Options:\n"
-                    "  -a|--append        Append to the output file instead of overwriting.\n"
-                    "  -b|--bits number   Set the width of the array elements (default = 8).\n"
-                    "  -d|--define        Declare the array size as a #define, instead of const int.\n"
-                    "  -h|--help          Show brief help.\n"
-                    "  -l|--label name    Set the symbol name for the array.\n"
-                    "  -m|--mutable       Declare the array as mutable (non-const).\n"
-                    "  -t|--text          Open the input file as a text file (Windows only).\n"
-                    "  -z|--zero          Append a zero terminator at the end of the array.\n");
+                    "  -a|--append         Append to the output file instead of overwriting.\n"
+                    "  -b|--bits <number>  Set the width of the array elements (default = 8).\n"
+                    "  -d|--define         Declare the array size as a #define, instead of a\n"
+                    "                      'const int'.\n"
+                    "  -h|--help           Show brief help.\n"
+                    "  -l|--label <name>   Set the symbol name for the array. In the label name,\n"
+                    "                      '$*' is replaced with the base filename (no extension)\n"
+                    "                      and '$@' is replaced with the full filename. The default\n"
+                    "                      label name is '$*'.\n"
+                    "  -m|--mutable        Declare the array as mutable (non-const).\n"
+                    "  -t|--text           Open the input file as a text file (Windows only).\n"
+                    "  -z|--zero           Append a zero terminator at the end of the array.\n\n");
     exit(1);
 }
 
@@ -64,7 +79,6 @@ main(int argc, char *argv[])
     char *f_outputname = NULL;
     char *symbolname = NULL;
     bool local_outputname = false;  /* name of output file was generated from input */
-    bool local_symbolname = false;  /* name of C symbol was generated from input */
 
     bool is_appending = false;
     bool is_textfile = false;
@@ -88,10 +102,8 @@ main(int argc, char *argv[])
                     bitsize = atoi(argv[++idx]);
                 else
                     about(argv[idx]); /* invalid option */
-                if (bitsize != 8 && bitsize != 16 && bitsize != 32) {
-                    fprintf(stderr, "ERROR: Invalid bit size (must be 8, 16 or 32).\n");
-                    return 1;
-                }
+                if (bitsize != 8 && bitsize != 16 && bitsize != 32)
+                    fatal("Invalid bit size (must be 8, 16 or 32).");
             } else if (strcmp(argv[idx], "-d") == 0 || strcmp(argv[idx], "--define") == 0) {
                 use_macro = true;
             } else if (strcmp(argv[idx], "-h") == 0 || strcmp(argv[idx], "--help") == 0 || strcmp(argv[idx], "-?") == 0) {
@@ -104,10 +116,6 @@ main(int argc, char *argv[])
                     symbolname = argv[++idx];
                 else
                     about(argv[idx]); /* invalid option */
-                if (!isalpha(*symbolname) && *symbolname != '_') {
-                    fprintf(stderr, "ERROR: Invalid C symbol name '%s'.\n", symbolname);
-                    return 1;
-                }
             } else if (strcmp(argv[idx], "-m") == 0 || strcmp(argv[idx], "--mutable") == 0) {
                 is_mutable = true;
             } else if (strcmp(argv[idx], "-t") == 0 || strcmp(argv[idx], "--text") == 0) {
@@ -116,29 +124,23 @@ main(int argc, char *argv[])
                 zero_terminate = true;
             }
         } else {
-            if (f_inputname == NULL) {
+            if (f_inputname == NULL)
                 f_inputname = argv[idx];
-            } else if (f_outputname == NULL) {
+            else if (f_outputname == NULL)
                 f_outputname = argv[idx];
-            } else {
-                fprintf(stderr, "ERROR: Too many filenames. Use 'bin2c --help' for usage information.\n");
-                return 1;
-            }
+            else
+                fatal("Too many filenames. Use 'bin2c --help' for usage information.");
         }
     }
 
     /* test input, make default names for output and symbol name (if needed) */
-    if (f_inputname == NULL) {
-        fprintf(stderr, "ERROR: No input file. Use 'bin2c --help' for usage information.\n");
-        return 1;
-    }
+    if (f_inputname == NULL)
+        fatal("No input file. Use 'bin2c --help' for usage information.");
     if (f_outputname == NULL) {
         char *ext;
         f_outputname = malloc(strlen(f_inputname) + 3); /* +2 for ".h" extension, +1 for '\0' */
-        if (f_outputname == NULL) {
-            fprintf(stderr, "ERROR: Memory allocation error.\n");
-            return 1;
-        }
+        if (f_outputname == NULL)
+            fatal("Memory allocation error.");
         strcpy(f_outputname, f_inputname);
         ext = strrchr(f_outputname, '.');
         if (ext != NULL && strpbrk(f_outputname, "\\/") == NULL)
@@ -146,31 +148,58 @@ main(int argc, char *argv[])
         strcat(f_outputname, ".h");
         local_outputname = true;
     }
-    if (symbolname == NULL) {
-        const char *base;
-        char *ext, *ptr;
-        base = f_inputname;
-        while (strpbrk(base, "\\/") != NULL)
-            base = strpbrk(base, "\\/") + 1;    /* skip all directory names */
-        symbolname = malloc(strlen(base) + 1);  /* +1 for '\0' */
-        if (symbolname == NULL) {
-            fprintf(stderr, "ERROR: Memory allocation error.\n");
-            return 1;
+    /* prepare names for the automatic label */
+    const char *fpos = f_inputname;
+    while (strpbrk(fpos, "\\/") != NULL)
+        fpos = strpbrk(fpos, "\\/") + 1;    /* skip all directory names */
+    char *fullname = malloc(strlen(fpos) + 1);  /* +1 for '\0' */
+    if (fullname == NULL)
+        fatal("Memory allocation error.");
+    strcpy(fullname, fpos);
+    char *basename = strdup(fullname);
+    if (basename == NULL)
+        fatal("Memory allocation error.");
+    char *ext = strrchr(basename, '.');
+    if (ext != NULL)
+        *ext = '\0';    /* remove extension from base name */
+    fpos = symbolname;
+    if (fpos == NULL)
+        fpos = "$*";
+    size_t symlen = strlen(fpos);
+    if (strstr(fpos, "$*") != NULL)
+        symlen += strlen(basename);
+    if (strstr(fpos, "$@") != NULL)
+        symlen += strlen(fullname);
+    symbolname = malloc(symlen + 1);  /* +1 for '\0' */
+    if (symbolname == NULL)
+        fatal("Memory allocation error.");
+    *symbolname = '\0';
+    while (*fpos != '\0') {
+        if (strncmp(fpos, "$*", 2) == 0) {
+            strcat(symbolname, basename);
+            fpos += 2;
+        } else if (strncmp(fpos, "$@", 2) == 0) {
+            strcat(symbolname, fullname);
+            fpos += 2;
+        } else {
+            size_t len = strlen(symbolname);
+            symbolname[len] = *fpos;
+            symbolname[len+1] = '\0';
+            fpos += 1;
         }
-        strcpy(symbolname, base);
-        ext = strrchr(symbolname, '.');
-        if (ext != NULL)
-            *ext = '\0';    /* remove extension */
-        while ((ptr = strpbrk(symbolname, " .!@#$%&()")) != NULL)
-            *ptr = '_';     /* replace spaces and invalid characters by an underscore */
-        local_symbolname = true;
+    }
+    free(fullname);
+    free(basename);
+    char *ptr = symbolname;
+    while (*ptr != '\0') {
+        if (!isalpha(*ptr) && *ptr != '_')
+            *ptr = '_';
+        ptr++;
     }
 
     FILE *f_input = fopen(f_inputname, is_textfile ? "rt" : "rb");
-    if (f_input == NULL) {
-        fprintf(stderr, "ERROR: Failed to open %s for reading.\n", f_inputname);
-        return 1;
-    }
+    if (f_input == NULL)
+        fatal("Failed to open %s for reading.", f_inputname);
 
     /* get the length of the input file, then read it fully in memory */
     fseek(f_input, 0, SEEK_END);
@@ -179,10 +208,8 @@ main(int argc, char *argv[])
     if (zero_terminate)
         file_size += 1;
     uint8_t *buf = (uint8_t *)calloc(file_size, 1);
-    if (buf == NULL) {
-        fprintf(stderr, "ERROR: Memory allocation error.\n");
-        return 1;
-    }
+    if (buf == NULL)
+        fatal("Memory allocation error.");
     fread(buf, file_size, 1, f_input);
     fclose(f_input);
 
@@ -198,10 +225,8 @@ main(int argc, char *argv[])
     int status =
       BZ2_bzBuffToBuffCompress(bz2_buf, &bz2_size, buf, file_size, 9, 1, 0);
 
-    if (status != BZ_OK) {
-        fprintf(stderr, "ERROR: Failed to compress data: error %i\n", status);
-        return 1;
-    }
+    if (status != BZ_OK)
+        fatal("Failed to compress data: error %i.", status);
 
     // and be very lazy
     free(buf);
@@ -215,10 +240,8 @@ main(int argc, char *argv[])
         f_output = fopen(f_outputname, "a+t");
     else
         f_output = fopen(f_outputname, "wt");
-    if (f_output == NULL) {
-        fprintf(stderr, "ERROR: Failed to open %s for writing\n", f_outputname);
-        return 1;
-    }
+    if (f_output == NULL)
+        fatal("Failed to open %s for writing", f_outputname);
 
     if (!is_appending)
         fprintf(f_output, "/* generated by Bin2C */\n"
@@ -282,8 +305,7 @@ main(int argc, char *argv[])
     free(buf);
     if (local_outputname)
         free(f_outputname);
-    if (local_symbolname)
-        free(symbolname);
+    free(symbolname);
 
     return 0;
 }
