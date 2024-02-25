@@ -191,8 +191,10 @@ main(int argc, char *argv[])
     free(fullname);
     free(basename);
     char *ptr = symbolname;
+    if (!isalpha(*ptr) && *ptr != '_')
+        *ptr = '_';
     while (*ptr != '\0') {
-        if (!isalpha(*ptr) && *ptr != '_')
+        if (!isalnum(*ptr) && *ptr != '_')
             *ptr = '_';
         ptr++;
     }
