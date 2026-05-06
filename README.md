@@ -1,5 +1,7 @@
 # Bin2C - convert a binary file to a C array.
 
+**Note: This project has migrated to [Codeberg](https://codeberg.org/compuphase/Bin2C)**
+
 Bin2C is a simple utility for converting a binary file to a C array declaration,
 which can then be included within an application.
 
